@@ -6,6 +6,7 @@ set(
     scheduler_GEDF_NP.c
     scheduler_NP.c
     scheduler_PEDF_NP.c
+    scheduler_FS.c
     scheduler_sync_tag_advance.c
 )
 list(APPEND INFO_SOURCES ${THREADED_SOURCES})

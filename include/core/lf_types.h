@@ -68,6 +68,7 @@ typedef unsigned short int ushort;
 #define LET 4
 #define NP 5
 #define PEDF_NP 6
+#define FS 7
 
 /**
  * Policy for handling scheduled events that violate the specified
@@ -281,6 +282,11 @@ typedef struct self_base_t {
 	struct reaction_t *executing_reaction;   // The currently executing reaction of the reactor.
 #ifdef MODAL_REACTORS
     reactor_mode_state_t _lf__mode_state;    // The current mode (for modal models).
+#endif
+#ifdef EXPERIMENTAL
+#ifdef LOCAL_TAG
+    tag_t tag;                               // The current tag of the reactor instance.
+#endif
 #endif
 } self_base_t;
 

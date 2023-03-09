@@ -1,6 +1,9 @@
 #if SCHEDULER == ADAPTIVE
 #include "scheduler_adaptive.c"
 
+#elif SCHEDULER == FS
+#include "scheduler_FS.c"
+
 #elif SCHEDULER == GEDF_NP_CI
 #include "scheduler_GEDF_NP_CI.c"
 
