@@ -49,6 +49,7 @@ void sourcereaction_function_0(void* instance_args) {
     source_self_t* self = (source_self_t*)instance_args; SUPPRESS_UNUSED_WARNING(self);
     source_out_t* out = &self->_lf_out;
     lf_set(out, self->s++);
+    lf_print("Inside source reaction_0");
 }
 #include "include/api/set_undef.h"
 source_self_t* new_Source() {
@@ -639,12 +640,27 @@ void _lf_initialize_trigger_objects() {
             scheduletest_sink_self[0]->_lf__reaction_2.index = 0xffffffffffff0002LL;
         }
     }
+
+    struct self_base_t** _lf_reactor_self_instances = (struct self_base_t**) calloc(3, sizeof(reaction_t*));
+    reaction_t** _lf_reaction_instances = (reaction_t**) calloc(5, sizeof(reaction_t*));
+    _lf_reactor_self_instances[0] = &(scheduletest_source_self[0]->base);
+    _lf_reactor_self_instances[1] = &(scheduletest_source2_self[0]->base);
+    _lf_reactor_self_instances[2] = &(scheduletest_sink_self[0]->base);
+    _lf_reaction_instances[0] = &(scheduletest_source_self[0]->_lf__reaction_0);
+    _lf_reaction_instances[1] = &(scheduletest_source2_self[0]->_lf__reaction_0);
+    _lf_reaction_instances[2] = &(scheduletest_sink_self[0]->_lf__reaction_0);
+    _lf_reaction_instances[3] = &(scheduletest_sink_self[0]->_lf__reaction_1);
+    _lf_reaction_instances[4] = &(scheduletest_sink_self[0]->_lf__reaction_2);
+
     // Initialize the scheduler
     size_t num_reactions_per_level[3] = 
         {3, 1, 1};
     sched_params_t sched_params = (sched_params_t) {
-                            .num_reactions_per_level = &num_reactions_per_level[0],
-                            .num_reactions_per_level_size = (size_t) 3};
+        .num_reactions_per_level = &num_reactions_per_level[0],
+        .num_reactions_per_level_size = (size_t) 3,
+        .reactor_self_instances = _lf_reactor_self_instances,
+        .reaction_instances = _lf_reaction_instances,
+    };
     lf_sched_init(
         (size_t)_lf_number_of_workers,
         &sched_params

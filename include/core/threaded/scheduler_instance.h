@@ -45,6 +45,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "semaphore.h"
 #include "scheduler.h"
 
+#if SCHEDULER == FS
+#include "scheduler_static_types.h"
+#endif
+
 extern lf_mutex_t mutex;
 
 
@@ -132,6 +136,40 @@ typedef struct {
      *
      */
     volatile size_t _lf_sched_next_reaction_level;
+
+#if SCHEDULER == FS
+
+    /**
+     * @brief Points to an array of program counters for each worker.
+     * 
+     */
+    size_t* pc;
+
+    /**
+     * @brief Points to a read-only array of static schedules.
+     * 
+     */
+    const inst_t** static_schedules;
+
+    /**
+     * @brief Points to a read-only array of lengths of the static schedules.
+     * 
+     */
+    const int* schedule_lengths;
+
+    /**
+     * @brief Points to an array of pointers to reactor self instances.
+     * 
+     */
+    self_base_t** reactor_self_instances;
+
+    /**
+     * @brief Points to an array of pointers to reaction instances.
+     * 
+     */
+    reaction_t** reaction_instances;
+
+#endif
 } _lf_sched_instance_t;
 
 /**
