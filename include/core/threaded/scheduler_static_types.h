@@ -3,10 +3,10 @@
  * @author Shaokai Lin <shaokai@eecs.berkeley.edu>
  * @brief Format of the instruction set
  */
-enum opcode_t {SET, EXE, DU, WU, ADV, JUMP, STOP};
+typedef enum {EIT, EXE, DU, WU, ADV, INC, SAC, JMP, STP} opcode_t;
 
 typedef struct inst_t {
-    enum opcode_t   op;
-    int             rs1;
-    int             rs2;
+    opcode_t    op;
+    int         rs1;
+    int         rs2;
 } inst_t;

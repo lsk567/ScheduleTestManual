@@ -57,12 +57,36 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /////////////////// External Variables /////////////////////////
 extern lf_mutex_t mutex;
 extern const inst_t* static_schedules[];
-extern const int schedule_lengths[];
+extern uint32_t counters[];
+extern const size_t num_counters;
 
 /////////////////// Scheduler Variables and Structs /////////////////////////
 _lf_sched_instance_t* _lf_sched_instance;
 
 /////////////////// Scheduler Private API /////////////////////////
+
+/**
+ * @brief If there is work to be done, notify workers individually.
+ *
+ * This assumes that the caller is not holding any thread mutexes.
+ */
+void _lf_sched_notify_workers() {
+    // Note: All threads are idle. Therefore, there is no need to lock the mutex
+    // while accessing the executing queue (which is pointing to one of the
+    // reaction queues).
+    size_t workers_to_awaken = 
+        _lf_sched_instance->_lf_sched_number_of_idle_workers;
+    LF_PRINT_DEBUG("Scheduler: Notifying %zu workers.", workers_to_awaken);
+    _lf_sched_instance->_lf_sched_number_of_idle_workers -= workers_to_awaken;
+    LF_PRINT_DEBUG("Scheduler: New number of idle workers: %zu.",
+                _lf_sched_instance->_lf_sched_number_of_idle_workers);
+    if (workers_to_awaken > 1) {
+        // Notify all the workers except the worker thread that has called this
+        // function.
+        lf_semaphore_release(_lf_sched_instance->_lf_sched_semaphore,
+                             (workers_to_awaken - 1));
+    }
+}
 
 /**
  * @brief Wait until the scheduler assigns work.
@@ -75,7 +99,25 @@ _lf_sched_instance_t* _lf_sched_instance;
  * to be assigned to it.
  */
 void _lf_sched_wait_for_work(size_t worker_number) {
-    LF_PRINT_DEBUG("NOT IMPLEMENTED: _lf_sched_wait_for_work");
+    // Increment the number of idle workers by 1 and
+    // check if this is the last worker thread to become idle.
+    if (lf_atomic_add_fetch(&_lf_sched_instance->_lf_sched_number_of_idle_workers,
+                            1) ==
+        _lf_sched_instance->_lf_sched_number_of_workers) {
+        // Last thread to go idle
+        LF_PRINT_DEBUG("Scheduler: Worker %zu is the last idle thread.",
+                    worker_number);
+        // Clear all the counters
+        for (int i = 0; i < num_counters; i++) {
+            counters[i] = 0;
+        }
+        // Call on the scheduler to distribute work or advance tag.
+        _lf_sched_notify_workers();
+    } else {
+        // Not the last thread to become idle.
+        // Wait for work to be released.
+        lf_semaphore_acquire(_lf_sched_instance->_lf_sched_semaphore);
+    }
 }
 
 ///////////////////// Scheduler Init and Destroy API /////////////////////////
@@ -102,9 +144,9 @@ void lf_sched_init(
 
     _lf_sched_instance->pc = calloc(number_of_workers, sizeof(size_t));
     _lf_sched_instance->static_schedules = &static_schedules[0];
-    _lf_sched_instance->schedule_lengths = schedule_lengths;
     _lf_sched_instance->reaction_instances = params->reaction_instances;
     _lf_sched_instance->reactor_self_instances = params->reactor_self_instances;
+    _lf_sched_instance->counters = counters;
 }
 
 /**
@@ -137,28 +179,52 @@ reaction_t* lf_sched_get_ready_reaction(int worker_number) {
     const inst_t* current_schedule = _lf_sched_instance->static_schedules[worker_number];
     bool exit_loop = false;
     reaction_t* returned_reaction = NULL;
+    opcode_t op;
+    int rs1;
+    int rs2;
 
-    while (*pc < _lf_sched_instance->schedule_lengths[worker_number] && !exit_loop) {
-        LF_PRINT_DEBUG("Current instruction for worker %d: [Line %zu] %d %d %d", worker_number, *pc, current_schedule[*pc].op, current_schedule[*pc].rs1, current_schedule[*pc].rs2);
+    while (!exit_loop) {
+        op  = current_schedule[*pc].op;
+        rs1 = current_schedule[*pc].rs1;
+        rs2 = current_schedule[*pc].rs2;
 
-        switch (current_schedule[*pc].op) {
-            case SET:
+        char* op_str = NULL;
+        switch (op) {
+            case EIT: op_str = "EIT"; break;
+            case EXE: op_str = "EXE"; break;
+            case DU:  op_str = "DU";  break;
+            case WU:  op_str = "WU";  break;
+            case ADV: op_str = "ADV"; break;
+            case JMP: op_str = "JMP"; break;
+            case SAC: op_str = "SAC"; break;
+            case INC: op_str = "INC"; break;
+            case STP: op_str = "STP"; break;
+        }
+
+        LF_PRINT_DEBUG("*** Current instruction for worker %d: [Line %zu] %s %d %d", worker_number, *pc, op_str, rs1, rs2);
+
+        switch (op) {
+            // EIT: "Execute-If-Triggered"
+            // Check if the reaction status is "queued."
+            // If so, return the reaction pointer and advance pc.
+            case EIT:
             {
-                LF_PRINT_DEBUG("NOT IMPLEMENTED: SET");
-                exit_loop = true;
-                break;
-            }
-            // If the instruction is Execute,
-            // return the reaction pointer and advance pc.
-            case EXE:
-            {
-                reaction_t* reaction = _lf_sched_instance->reaction_instances[current_schedule[*pc].rs1];
+                reaction_t* reaction = _lf_sched_instance->reaction_instances[rs1];
                 if (reaction->status == queued) {
                     returned_reaction = reaction;
                     exit_loop = true;
                 } else
-                    LF_PRINT_DEBUG("Worker %d skip execution", worker_number);
-                *pc += 1;
+                    LF_PRINT_DEBUG("*** Worker %d skip execution", worker_number);
+                *pc += 1; // Increment pc.
+                break;
+            }
+            // EXE: "EXEcute"
+            case EXE:
+            {
+                reaction_t* reaction = _lf_sched_instance->reaction_instances[rs1];
+                returned_reaction = reaction;
+                exit_loop = true;
+                *pc += 1; // Increment pc.
                 break;
             }
             // If the instruction is Wait, block until
@@ -167,31 +233,50 @@ reaction_t* lf_sched_get_ready_reaction(int worker_number) {
             // until we process an Execute.
             case WU:
             {
-                LF_PRINT_DEBUG("NOT IMPLEMENTED: WU");
-                exit_loop = true;
+                while(_lf_sched_instance->counters[rs1] < rs2) {
+                    LF_PRINT_DEBUG("*** Worker %d waiting", worker_number);
+                }
+                *pc += 1; // Increment pc.
                 break;
             }
             case DU:
             {
-                LF_PRINT_DEBUG("NOT IMPLEMENTED: DU");
+                LF_PRINT_DEBUG("*** NOT IMPLEMENTED: DU");
                 exit_loop = true;
                 break;
             }
             case ADV:
             {
-                LF_PRINT_DEBUG("NOT IMPLEMENTED: ADV");
-                exit_loop = true;
+                lf_mutex_lock(&mutex);
+                _lf_sched_instance->reactor_self_instances[rs1]->tag.time += rs2;
+                _lf_sched_instance->reactor_self_instances[rs1]->tag.microstep = 0;
+                lf_mutex_unlock(&mutex);
+                *pc += 1; // Increment pc.
                 break;
             }
-            case JUMP:
+            case JMP:
             {
-                LF_PRINT_DEBUG("NOT IMPLEMENTED: JUMP");
-                exit_loop = true;
+                // LF_PRINT_DEBUG("*** NOT IMPLEMENTED: JMP");
+                // exit_loop = true;
+                *pc = rs1;
                 break;
             }
-            case STOP:
+            case INC:
             {
-                LF_PRINT_DEBUG("NOT IMPLEMENTED: STOP");
+                lf_mutex_lock(&mutex);
+                _lf_sched_instance->counters[rs1] += rs2;
+                lf_mutex_unlock(&mutex);
+                *pc += 1; // Increment pc.
+                break;
+            }
+            case SAC:
+            {
+                _lf_sched_wait_for_work(worker_number);
+                *pc += 1; // Increment pc.
+                break;
+            }
+            case STP:
+            {
                 exit_loop = true;
                 break;
             } 
@@ -211,10 +296,16 @@ reaction_t* lf_sched_get_ready_reaction(int worker_number) {
  */
 void lf_sched_done_with_reaction(size_t worker_number,
                                  reaction_t* done_reaction) {
-    if (!lf_bool_compare_and_swap(&done_reaction->status, queued, inactive)) {
-        lf_print_error_and_exit("Unexpected reaction status: %d. Expected %d.",
-                              done_reaction->status, queued);
-    }
+    LF_PRINT_DEBUG("*** Inside lf_sched_done_with_reaction");
+    // If the reaction status is queued, change it back to inactive.
+    // We do not check for error here because the EXE instruction
+    // can execute a reaction with an "inactive" status.
+    // The reason is that since runtime does not advance
+    // global time, the next timer events will not be
+    // scheduled and put onto the event queue. The next
+    // timer events are encoded directly into the schedule
+    // using the EXE instructions.
+    lf_bool_compare_and_swap(&done_reaction->status, queued, inactive);
 }
 
 /**
@@ -237,8 +328,13 @@ void lf_sched_done_with_reaction(size_t worker_number,
  *
  */
 void lf_sched_trigger_reaction(reaction_t* reaction, int worker_number) {
+    LF_PRINT_DEBUG("*** Inside lf_sched_trigger_reaction");
+    LF_PRINT_DEBUG("*** Worker %d triggering reaction %s", worker_number, reaction->name);
     // Mark a reaction as queued, so that it will be executed when workers do work.
-    reaction->status = queued;
+    if (!lf_bool_compare_and_swap(&reaction->status, inactive, queued)) {
+        lf_print_error_and_exit("Unexpected reaction status: %d. Expected %d.",
+                              reaction->status, inactive);
+    }
 }
 #endif
 #endif

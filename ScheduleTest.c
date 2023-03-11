@@ -11,9 +11,10 @@ int lf_reactor_c_main(int argc, const char* argv[]);
 int main(int argc, const char* argv[]) {
     return lf_reactor_c_main(argc, argv);
 }
-const char* _lf_default_argv[] = { "dummy", "-o", "50", "msec" };
+// const char* _lf_default_argv[] = { "dummy", "-o", "50", "msec" };
+const char* _lf_default_argv[] = { "dummy" };
 void _lf_set_default_command_line_options() {
-        default_argc = 4;
+        default_argc = 1;
         default_argv = _lf_default_argv;
 }
 // =============== START reactor class Source
@@ -59,7 +60,7 @@ source_self_t* new_Source() {
     self->_lf__reaction_0.self = self;
     self->_lf__reaction_0.deadline_violation_handler = NULL;
     self->_lf__reaction_0.STP_handler = NULL;
-    self->_lf__reaction_0.name = "?";
+    self->_lf__reaction_0.name = "source_reaction_0";
     self->_lf__reaction_0.mode = NULL;
     self->_lf__t.last = NULL;
     #ifdef FEDERATED_DECENTRALIZED
@@ -178,21 +179,21 @@ sink_self_t* new_Sink() {
     self->_lf__reaction_0.self = self;
     self->_lf__reaction_0.deadline_violation_handler = NULL;
     self->_lf__reaction_0.STP_handler = NULL;
-    self->_lf__reaction_0.name = "?";
+    self->_lf__reaction_0.name = "sink_reaction_0";
     self->_lf__reaction_0.mode = NULL;
     self->_lf__reaction_1.number = 1;
     self->_lf__reaction_1.function = sinkreaction_function_1;
     self->_lf__reaction_1.self = self;
     self->_lf__reaction_1.deadline_violation_handler = NULL;
     self->_lf__reaction_1.STP_handler = NULL;
-    self->_lf__reaction_1.name = "?";
+    self->_lf__reaction_1.name = "sink_reaction_1";
     self->_lf__reaction_1.mode = NULL;
     self->_lf__reaction_2.number = 2;
     self->_lf__reaction_2.function = sinkreaction_function_2;
     self->_lf__reaction_2.self = self;
     self->_lf__reaction_2.deadline_violation_handler = NULL;
     self->_lf__reaction_2.STP_handler = NULL;
-    self->_lf__reaction_2.name = "?";
+    self->_lf__reaction_2.name = "sink_reaction_2";
     self->_lf__reaction_2.mode = NULL;
     self->_lf__t.last = NULL;
     #ifdef FEDERATED_DECENTRALIZED

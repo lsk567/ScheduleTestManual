@@ -152,12 +152,6 @@ typedef struct {
     const inst_t** static_schedules;
 
     /**
-     * @brief Points to a read-only array of lengths of the static schedules.
-     * 
-     */
-    const int* schedule_lengths;
-
-    /**
      * @brief Points to an array of pointers to reactor self instances.
      * 
      */
@@ -168,6 +162,12 @@ typedef struct {
      * 
      */
     reaction_t** reaction_instances;
+
+    /**
+     * @brief Points to an array of integer counters.
+     * 
+     */
+    uint32_t* counters;
 
 #endif
 } _lf_sched_instance_t;

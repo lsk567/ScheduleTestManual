@@ -32,6 +32,7 @@ add_executable(
     ${LF_MAIN_TARGET}
     lib/schedule.c
     ScheduleTest.c
+    # static_schedule.c # Generated
 )
 target_link_libraries(${LF_MAIN_TARGET} PRIVATE core)
 target_include_directories(${LF_MAIN_TARGET} PUBLIC include/)
@@ -44,7 +45,7 @@ target_include_directories(${LF_MAIN_TARGET} PUBLIC include/core/utils)
 find_package(Threads REQUIRED)
 target_link_libraries(${LF_MAIN_TARGET} PRIVATE Threads::Threads)
 # Set the number of workers to enable threading/tracing
-target_compile_definitions(${LF_MAIN_TARGET} PUBLIC NUMBER_OF_WORKERS=0)
+target_compile_definitions(${LF_MAIN_TARGET} PUBLIC NUMBER_OF_WORKERS=2)
 # Set flag to indicate a multi-threaded runtime
 target_compile_definitions( ${LF_MAIN_TARGET} PUBLIC LF_THREADED=1)
     install(
