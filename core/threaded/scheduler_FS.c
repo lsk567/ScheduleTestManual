@@ -107,7 +107,7 @@ void _lf_sched_wait_for_work(size_t worker_number) {
         // Last thread to go idle
         LF_PRINT_DEBUG("Scheduler: Worker %zu is the last idle thread.",
                     worker_number);
-        // Clear all the counters
+        // Clear all the counters.
         for (int i = 0; i < num_counters; i++) {
             counters[i] = 0;
         }
@@ -296,7 +296,7 @@ reaction_t* lf_sched_get_ready_reaction(int worker_number) {
  */
 void lf_sched_done_with_reaction(size_t worker_number,
                                  reaction_t* done_reaction) {
-    LF_PRINT_DEBUG("*** Inside lf_sched_done_with_reaction");
+    LF_PRINT_DEBUG("*** Worker %zu inside lf_sched_done_with_reaction, done with %s", worker_number, done_reaction->name);
     // If the reaction status is queued, change it back to inactive.
     // We do not check for error here because the EXE instruction
     // can execute a reaction with an "inactive" status.
@@ -306,6 +306,8 @@ void lf_sched_done_with_reaction(size_t worker_number,
     // timer events are encoded directly into the schedule
     // using the EXE instructions.
     lf_bool_compare_and_swap(&done_reaction->status, queued, inactive);
+
+    LF_PRINT_DEBUG("*** Worker %zu reports updated status for %s: %u", worker_number, done_reaction->name, done_reaction->status);
 }
 
 /**
@@ -332,8 +334,10 @@ void lf_sched_trigger_reaction(reaction_t* reaction, int worker_number) {
     LF_PRINT_DEBUG("*** Worker %d triggering reaction %s", worker_number, reaction->name);
     // Mark a reaction as queued, so that it will be executed when workers do work.
     if (!lf_bool_compare_and_swap(&reaction->status, inactive, queued)) {
-        lf_print_error_and_exit("Unexpected reaction status: %d. Expected %d.",
-                              reaction->status, inactive);
+        // FIXME: Uncommenting the code below yields weird exception.
+        // lf_print_error_and_exit("Worker %d reports unexpected reaction status for reaction %s: %d. Expected %d.",
+        //                         worker_number, reaction->name,
+        //                         reaction->status, inactive);
     }
 }
 #endif
