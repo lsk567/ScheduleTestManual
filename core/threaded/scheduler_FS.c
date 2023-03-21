@@ -57,7 +57,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /////////////////// External Variables /////////////////////////
 extern lf_mutex_t mutex;
 extern const inst_t* static_schedules[];
-extern uint32_t counters[];
+extern volatile uint32_t counters[];
 extern const size_t num_counters;
 
 /////////////////// Scheduler Variables and Structs /////////////////////////

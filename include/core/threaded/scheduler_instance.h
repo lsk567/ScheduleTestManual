@@ -167,7 +167,7 @@ typedef struct {
      * @brief Points to an array of integer counters.
      * 
      */
-    uint32_t* counters;
+    volatile uint32_t* counters;
 
 #endif
 } _lf_sched_instance_t;
