@@ -175,13 +175,14 @@ void lf_sched_free() {
  */
 reaction_t* lf_sched_get_ready_reaction(int worker_number) {
     LF_PRINT_DEBUG("Worker %d inside lf_sched_get_ready_reaction", worker_number);
-    size_t* pc = &_lf_sched_instance->pc[worker_number];
-    const inst_t* current_schedule = _lf_sched_instance->static_schedules[worker_number];
-    bool exit_loop = false;
-    reaction_t* returned_reaction = NULL;
-    opcode_t op;
-    int rs1;
-    int rs2;
+    
+    size_t*         pc                  = &_lf_sched_instance->pc[worker_number];
+    const inst_t*   current_schedule    = _lf_sched_instance->static_schedules[worker_number];
+    reaction_t*     returned_reaction   = NULL;
+    bool            exit_loop           = false;
+    opcode_t        op;
+    int             rs1;
+    int             rs2;
 
     while (!exit_loop) {
         op  = current_schedule[*pc].op;
@@ -283,6 +284,8 @@ reaction_t* lf_sched_get_ready_reaction(int worker_number) {
                 break;
             } 
         }
+
+        // FIXME: Check if all reactors reach the stop_tag.
     }
     LF_PRINT_DEBUG("Worker %d leaves lf_sched_get_ready_reaction", worker_number);
     return returned_reaction;
