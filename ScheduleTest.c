@@ -260,6 +260,8 @@ int _lf_reset_reactions_size = 0;
 void _lf_initialize_trigger_objects() {
     // Initialize the _lf_clock
     lf_initialize_clock();
+	// Initialize tracing
+	start_trace("ScheduleTest.lft");
     // Create the array that will contain pointers to is_present fields to reset on each step.
     _lf_is_present_fields_size = 2;
     _lf_is_present_fields = (bool**)calloc(2, sizeof(bool*));
@@ -293,10 +295,13 @@ void _lf_initialize_trigger_objects() {
     SUPPRESS_UNUSED_WARNING(scheduletest_sink_self);
     // ***** Start initializing ScheduleTest of class ScheduleTest
     scheduletest_main_self[0] = new_ScheduleTest();
+    _lf_register_trace_event(scheduletest_main_self[0], NULL, trace_reactor, "ScheduleTest");
     bank_index = 0; SUPPRESS_UNUSED_WARNING(bank_index);
     {
         // ***** Start initializing ScheduleTest.source of class Source
         scheduletest_source_self[0] = new_Source();
+        _lf_register_trace_event(scheduletest_source_self[0], NULL, trace_reactor, "source");
+        _lf_register_trace_event(scheduletest_source_self[0], &(scheduletest_source_self[0]->_lf__t), trace_trigger, "source.t");
         bank_index = 0; SUPPRESS_UNUSED_WARNING(bank_index);
         // width of -2 indicates that it is not a multiport.
         scheduletest_source_self[0]->_lf_out_width = -2;
@@ -315,6 +320,8 @@ void _lf_initialize_trigger_objects() {
     {
         // ***** Start initializing ScheduleTest.source2 of class Source
         scheduletest_source2_self[0] = new_Source();
+        _lf_register_trace_event(scheduletest_source2_self[0], NULL, trace_reactor, "source2");
+        _lf_register_trace_event(scheduletest_source2_self[0], &(scheduletest_source2_self[0]->_lf__t), trace_trigger, "source2.t");
         bank_index = 0; SUPPRESS_UNUSED_WARNING(bank_index);
         // width of -2 indicates that it is not a multiport.
         scheduletest_source2_self[0]->_lf_out_width = -2;
@@ -333,6 +340,8 @@ void _lf_initialize_trigger_objects() {
     {
         // ***** Start initializing ScheduleTest.sink of class Sink
         scheduletest_sink_self[0] = new_Sink();
+        _lf_register_trace_event(scheduletest_sink_self[0], NULL, trace_reactor, "sink");
+        _lf_register_trace_event(scheduletest_sink_self[0], &(scheduletest_sink_self[0]->_lf__t), trace_trigger, "sink.t");
         bank_index = 0; SUPPRESS_UNUSED_WARNING(bank_index);
         // width of -2 indicates that it is not a multiport.
         scheduletest_sink_self[0]->_lf_in_width = -2;
