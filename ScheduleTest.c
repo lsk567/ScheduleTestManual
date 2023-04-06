@@ -652,10 +652,11 @@ void _lf_initialize_trigger_objects() {
     }
 
     struct self_base_t** _lf_reactor_self_instances = (struct self_base_t**) calloc(3, sizeof(reaction_t*));
-    reaction_t** _lf_reaction_instances = (reaction_t**) calloc(5, sizeof(reaction_t*));
     _lf_reactor_self_instances[0] = &(scheduletest_source_self[0]->base);
     _lf_reactor_self_instances[1] = &(scheduletest_source2_self[0]->base);
     _lf_reactor_self_instances[2] = &(scheduletest_sink_self[0]->base);
+
+    reaction_t** _lf_reaction_instances = (reaction_t**) calloc(5, sizeof(reaction_t*));
     _lf_reaction_instances[0] = &(scheduletest_source_self[0]->_lf__reaction_0);
     _lf_reaction_instances[1] = &(scheduletest_source2_self[0]->_lf__reaction_0);
     _lf_reaction_instances[2] = &(scheduletest_sink_self[0]->_lf__reaction_0);
@@ -669,6 +670,7 @@ void _lf_initialize_trigger_objects() {
         .num_reactions_per_level = &num_reactions_per_level[0],
         .num_reactions_per_level_size = (size_t) 3,
         .reactor_self_instances = _lf_reactor_self_instances,
+        .num_reactor_self_instances = 3,
         .reaction_instances = _lf_reaction_instances,
     };
     lf_sched_init(

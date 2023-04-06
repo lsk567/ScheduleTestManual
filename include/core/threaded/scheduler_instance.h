@@ -158,6 +158,12 @@ typedef struct {
     self_base_t** reactor_self_instances;
 
     /**
+     * @brief The total number of reactor self instances.
+     * 
+     */
+    size_t num_reactor_self_instances;
+
+    /**
      * @brief Points to an array of pointers to reaction instances.
      * 
      */

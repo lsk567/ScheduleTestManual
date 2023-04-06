@@ -45,6 +45,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <assert.h>
 
 #include "platform.h"
+#include "reactor_common.h"
 #include "scheduler_instance.h"
 #include "scheduler_sync_tag_advance.h"
 #include "scheduler.h"
@@ -62,6 +63,27 @@ extern const size_t num_counters;
 
 /////////////////// Scheduler Variables and Structs /////////////////////////
 _lf_sched_instance_t* _lf_sched_instance;
+size_t num_reactors_reached_stop_tag = 0;
+
+/////////////////// Function Prototypes /////////////////////////
+void execute_inst_EIT(size_t worker_number, int rs1, int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop);
+void execute_inst_EXE(size_t worker_number, int rs1, int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop);
+void execute_inst_DU(size_t worker_number, int rs1, int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop);
+void execute_inst_WU(size_t worker_number, int rs1, int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop);
+void execute_inst_ADV(size_t worker_number, int rs1, int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop);
+void execute_inst_JMP(size_t worker_number, int rs1, int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop);
+void execute_inst_SAC(size_t worker_number, int rs1, int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop);
+void execute_inst_INC(size_t worker_number, int rs1, int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop);
+void execute_inst_STP(size_t worker_number, int rs1, int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop);
 
 /////////////////// Scheduler Private API /////////////////////////
 
@@ -120,6 +142,250 @@ void _lf_sched_wait_for_work(size_t worker_number) {
     }
 }
 
+/**
+ * @brief EIT: "Execute-If-Triggered"
+ * Check if the reaction status is "queued."
+ * If so, return the reaction pointer and advance pc.
+ * 
+ * @param rs1 
+ * @param rs2 
+ * @param pc 
+ * @param returned_reaction 
+ * @param exit_loop 
+ */
+void execute_inst_EIT(size_t worker_number, int rs1, int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop) {
+    reaction_t* reaction = _lf_sched_instance->reaction_instances[rs1];
+    if (reaction->status == queued) {
+        *returned_reaction = reaction;
+        *exit_loop = true;
+    } else
+        LF_PRINT_DEBUG("*** Worker %zu skip execution", worker_number);
+    *pc += 1; // Increment pc.
+}
+
+/**
+ * @brief EXE: Execute a reaction
+ * 
+ * @param rs1 
+ * @param rs2 
+ * @param pc 
+ * @param returned_reaction 
+ * @param exit_loop 
+ */
+void execute_inst_EXE(size_t worker_number, int rs1, int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop) {
+    reaction_t* reaction = _lf_sched_instance->reaction_instances[rs1];
+    *returned_reaction = reaction;
+    *exit_loop = true;
+    *pc += 1; // Increment pc.
+}
+
+/**
+ * @brief DU: Delay Until a physical timepoint (rs1) plus an offset (rs2) is reached.
+ * 
+ * @param worker_number 
+ * @param rs1 
+ * @param rs2 
+ * @param pc 
+ * @param returned_reaction 
+ * @param exit_loop 
+ */
+void execute_inst_DU(size_t worker_number, int rs1, int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop) {
+    LF_PRINT_DEBUG("*** NOT IMPLEMENTED: DU");
+    *exit_loop = true;
+}
+
+/**
+ * @brief WU: Wait until a counting variable reaches a specified value.
+ * 
+ * @param rs1 
+ * @param rs2 
+ * @param pc 
+ * @param returned_reaction 
+ * @param exit_loop 
+ */
+void execute_inst_WU(size_t worker_number, int rs1, int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop) {
+    while(_lf_sched_instance->counters[rs1] < rs2) {
+        LF_PRINT_DEBUG("*** Worker %zu waiting", worker_number);
+    }
+    *pc += 1; // Increment pc.
+}
+
+/**
+ * @brief ADV: Advance time for a particular reactor.
+ * 
+ * @param rs1 
+ * @param rs2 
+ * @param pc 
+ * @param returned_reaction 
+ * @param exit_loop 
+ */
+void execute_inst_ADV(size_t worker_number, int rs1, int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop) {
+    lf_mutex_lock(&mutex);
+    self_base_t* reactor =
+        _lf_sched_instance->reactor_self_instances[rs1];
+    reactor->tag.time += rs2;
+    reactor->tag.microstep = 0;
+
+    // FIXME: This does not work.
+    // num_reactors_reached_stop_tag cannot increment
+    // when ANY reactor reaches the stop tag, including
+    // the ones that have already reached.
+    /*
+    if (_lf_is_tag_after_stop_tag(reactor->tag))
+        num_reactors_reached_stop_tag++;
+    */
+   
+    lf_mutex_unlock(&mutex);
+    *pc += 1; // Increment pc.
+
+    // Check if all reactors reach the stop_tag.
+    // If so, execute an STP instruction.
+    // if (num_reactors_reached_stop_tag >=
+    //     _lf_sched_instance->num_reactor_self_instances) {
+    //     execute_inst_STP(worker_number, rs1, rs2, pc,
+    //                     returned_reaction, exit_loop);
+    // }
+}
+
+/**
+ * @brief JMP: Jump to a particular line in the schedule.
+ * 
+ * @param rs1 
+ * @param rs2 
+ * @param pc 
+ * @param returned_reaction 
+ * @param exit_loop 
+ */
+void execute_inst_JMP(size_t worker_number, int rs1, int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop) {
+    *pc = rs1;
+}
+
+/**
+ * @brief SAC: (Sync-And-Clear) synchronize all workers until all execute SAC
+ * and let the last idle worker reset all counters to 0.
+ * 
+ * @param rs1 
+ * @param rs2 
+ * @param pc 
+ * @param returned_reaction 
+ * @param exit_loop 
+ */
+void execute_inst_SAC(size_t worker_number, int rs1, int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop) {
+    tracepoint_worker_wait_starts(worker_number);
+    _lf_sched_wait_for_work(worker_number);
+    tracepoint_worker_wait_ends(worker_number);
+    *pc += 1; // Increment pc.
+}
+
+/**
+ * @brief INC: INCrement a counter (rs1) by an amount (rs2).
+ * 
+ * @param rs1 
+ * @param rs2 
+ * @param pc 
+ * @param returned_reaction 
+ * @param exit_loop 
+ */
+void execute_inst_INC(size_t worker_number, int rs1, int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop) {
+    lf_mutex_lock(&mutex);
+    _lf_sched_instance->counters[rs1] += rs2;
+    lf_mutex_unlock(&mutex);
+    *pc += 1; // Increment pc.
+}
+
+/**
+ * @brief STP: SToP the execution.
+ * 
+ */
+void execute_inst_STP(size_t worker_number, int rs1, int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop) {
+    *exit_loop = true;
+}
+
+/**
+ * @brief Execute an instruction
+ * 
+ * @param op the opcode
+ * @param rs1 the first operand
+ * @param rs2 the second operand
+ * @param pc a pointer to the program counter
+ * @param returned_reaction a pointer to a reaction to be executed 
+ * 
+ * FIXME: This feels like a bad design in the abstraction.
+ * @param exit_loop a pointer to a boolean indicating whether
+ *                  the outer while loop should be exited
+ */
+void execute_inst(size_t worker_number, opcode_t op, int rs1, int rs2,
+    size_t* pc, reaction_t** returned_reaction, bool* exit_loop) {
+    char* op_str = NULL;
+    switch (op) {
+        case EIT:
+            op_str = "EIT";
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+                            worker_number, *pc, op_str, rs1, rs2);
+            execute_inst_EIT(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            break;
+        case EXE:
+            op_str = "EXE";
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+                            worker_number, *pc, op_str, rs1, rs2);
+            execute_inst_EXE(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            break;
+        case DU:  
+            op_str = "DU";
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+                            worker_number, *pc, op_str, rs1, rs2);
+            execute_inst_DU(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            break;
+        case WU:
+            op_str = "WU";
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+                            worker_number, *pc, op_str, rs1, rs2);
+            execute_inst_WU(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            break;
+        case ADV:
+            op_str = "ADV";
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+                            worker_number, *pc, op_str, rs1, rs2);
+            execute_inst_ADV(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            break;
+        case JMP:
+            op_str = "JMP";
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+                            worker_number, *pc, op_str, rs1, rs2);
+            execute_inst_JMP(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            break;
+        case SAC:
+            op_str = "SAC";
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+                            worker_number, *pc, op_str, rs1, rs2);
+            execute_inst_SAC(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            break;
+        case INC:
+            op_str = "INC";
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+                            worker_number, *pc, op_str, rs1, rs2);
+            execute_inst_INC(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            break;
+        case STP:
+            op_str = "STP";
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+                            worker_number, *pc, op_str, rs1, rs2);
+            execute_inst_STP(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            break;
+        default:
+            lf_print_error("Invalid instruction: %d", op);
+    }
+}
+
 ///////////////////// Scheduler Init and Destroy API /////////////////////////
 /**
  * @brief Initialize the scheduler.
@@ -146,6 +412,7 @@ void lf_sched_init(
     _lf_sched_instance->static_schedules = &static_schedules[0];
     _lf_sched_instance->reaction_instances = params->reaction_instances;
     _lf_sched_instance->reactor_self_instances = params->reactor_self_instances;
+    _lf_sched_instance->num_reactor_self_instances = params->num_reactor_self_instances;
     _lf_sched_instance->counters = counters;
 }
 
@@ -176,10 +443,10 @@ void lf_sched_free() {
 reaction_t* lf_sched_get_ready_reaction(int worker_number) {
     LF_PRINT_DEBUG("Worker %d inside lf_sched_get_ready_reaction", worker_number);
     
-    size_t*         pc                  = &_lf_sched_instance->pc[worker_number];
     const inst_t*   current_schedule    = _lf_sched_instance->static_schedules[worker_number];
     reaction_t*     returned_reaction   = NULL;
     bool            exit_loop           = false;
+    size_t*         pc                  = &_lf_sched_instance->pc[worker_number];
     opcode_t        op;
     int             rs1;
     int             rs2;
@@ -189,104 +456,14 @@ reaction_t* lf_sched_get_ready_reaction(int worker_number) {
         rs1 = current_schedule[*pc].rs1;
         rs2 = current_schedule[*pc].rs2;
 
-        char* op_str = NULL;
-        switch (op) {
-            case EIT: op_str = "EIT"; break;
-            case EXE: op_str = "EXE"; break;
-            case DU:  op_str = "DU";  break;
-            case WU:  op_str = "WU";  break;
-            case ADV: op_str = "ADV"; break;
-            case JMP: op_str = "JMP"; break;
-            case SAC: op_str = "SAC"; break;
-            case INC: op_str = "INC"; break;
-            case STP: op_str = "STP"; break;
-        }
+        // Execute the current instruction
+        execute_inst(worker_number, op, rs1, rs2, pc,
+                    &returned_reaction, &exit_loop);
 
-        LF_PRINT_DEBUG("*** Current instruction for worker %d: [Line %zu] %s %d %d", worker_number, *pc, op_str, rs1, rs2);
-
-        switch (op) {
-            // EIT: "Execute-If-Triggered"
-            // Check if the reaction status is "queued."
-            // If so, return the reaction pointer and advance pc.
-            case EIT:
-            {
-                reaction_t* reaction = _lf_sched_instance->reaction_instances[rs1];
-                if (reaction->status == queued) {
-                    returned_reaction = reaction;
-                    exit_loop = true;
-                } else
-                    LF_PRINT_DEBUG("*** Worker %d skip execution", worker_number);
-                *pc += 1; // Increment pc.
-                break;
-            }
-            // EXE: "EXEcute"
-            case EXE:
-            {
-                reaction_t* reaction = _lf_sched_instance->reaction_instances[rs1];
-                returned_reaction = reaction;
-                exit_loop = true;
-                *pc += 1; // Increment pc.
-                break;
-            }
-            // If the instruction is Wait, block until
-            // the reaction is finished (by checking
-            // the semaphore) and process the next instruction
-            // until we process an Execute.
-            case WU:
-            {
-                while(_lf_sched_instance->counters[rs1] < rs2) {
-                    LF_PRINT_DEBUG("*** Worker %d waiting", worker_number);
-                }
-                *pc += 1; // Increment pc.
-                break;
-            }
-            case DU:
-            {
-                LF_PRINT_DEBUG("*** NOT IMPLEMENTED: DU");
-                exit_loop = true;
-                break;
-            }
-            case ADV:
-            {
-                lf_mutex_lock(&mutex);
-                _lf_sched_instance->reactor_self_instances[rs1]->tag.time += rs2;
-                _lf_sched_instance->reactor_self_instances[rs1]->tag.microstep = 0;
-                lf_mutex_unlock(&mutex);
-                *pc += 1; // Increment pc.
-                break;
-            }
-            case JMP:
-            {
-                // LF_PRINT_DEBUG("*** NOT IMPLEMENTED: JMP");
-                // exit_loop = true;
-                *pc = rs1;
-                break;
-            }
-            case INC:
-            {
-                lf_mutex_lock(&mutex);
-                _lf_sched_instance->counters[rs1] += rs2;
-                lf_mutex_unlock(&mutex);
-                *pc += 1; // Increment pc.
-                break;
-            }
-            case SAC:
-            {
-                tracepoint_worker_wait_starts(worker_number);
-                _lf_sched_wait_for_work(worker_number);
-                tracepoint_worker_wait_ends(worker_number);
-                *pc += 1; // Increment pc.
-                break;
-            }
-            case STP:
-            {
-                exit_loop = true;
-                break;
-            } 
-        }
-
-        // FIXME: Check if all reactors reach the stop_tag.
+        LF_PRINT_DEBUG("Worker %d: returned_reaction = %p, exit_loop = %d",
+                        worker_number, returned_reaction, exit_loop);
     }
+
     LF_PRINT_DEBUG("Worker %d leaves lf_sched_get_ready_reaction", worker_number);
     return returned_reaction;
 }
