@@ -69,6 +69,7 @@ typedef struct {
     size_t num_reactions_per_level_size;
     struct self_base_t** reactor_self_instances;
     size_t num_reactor_self_instances;
+    bool* reactor_reached_stop_tag;
     reaction_t** reaction_instances;
 } sched_params_t;
 

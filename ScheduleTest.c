@@ -655,6 +655,14 @@ void _lf_initialize_trigger_objects() {
     _lf_reactor_self_instances[0] = &(scheduletest_source_self[0]->base);
     _lf_reactor_self_instances[1] = &(scheduletest_source2_self[0]->base);
     _lf_reactor_self_instances[2] = &(scheduletest_sink_self[0]->base);
+    // FIXME: Why can't we put the pointer array on the stack?
+    /*
+    struct self_base_t* _lf_reactor_self_instances[3] = {
+        &(scheduletest_source_self[0]->base),
+        &(scheduletest_source2_self[0]->base),
+        &(scheduletest_sink_self[0]->base)
+    };
+    */
 
     reaction_t** _lf_reaction_instances = (reaction_t**) calloc(5, sizeof(reaction_t*));
     _lf_reaction_instances[0] = &(scheduletest_source_self[0]->_lf__reaction_0);
@@ -663,15 +671,18 @@ void _lf_initialize_trigger_objects() {
     _lf_reaction_instances[3] = &(scheduletest_sink_self[0]->_lf__reaction_1);
     _lf_reaction_instances[4] = &(scheduletest_sink_self[0]->_lf__reaction_2);
 
+    bool reactor_reached_stop_tag[3] = { false };
+
     // Initialize the scheduler
     size_t num_reactions_per_level[3] = 
         {3, 1, 1};
     sched_params_t sched_params = (sched_params_t) {
         .num_reactions_per_level = &num_reactions_per_level[0],
         .num_reactions_per_level_size = (size_t) 3,
-        .reactor_self_instances = _lf_reactor_self_instances,
+        .reactor_self_instances = &_lf_reactor_self_instances[0],
         .num_reactor_self_instances = 3,
         .reaction_instances = _lf_reaction_instances,
+        .reactor_reached_stop_tag = &reactor_reached_stop_tag[0],
     };
     lf_sched_init(
         (size_t)_lf_number_of_workers,

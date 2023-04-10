@@ -31,6 +31,9 @@ THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * Implementation file for tag functions for Lingua Franca programs.
  */
 
+// Shaokai: to delete.
+#include <stdlib.h>
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>

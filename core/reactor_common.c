@@ -1696,9 +1696,6 @@ void initialize(void) {
     next_q = pqueue_init(INITIAL_EVENT_QUEUE_SIZE, in_no_particular_order, get_event_time,
             get_event_position, set_event_position, event_matches, print_event);
 
-    // Initialize the trigger table.
-    _lf_initialize_trigger_objects();
-
     physical_start_time = lf_time_physical();
     current_tag.time = physical_start_time;
     start_time = current_tag.time;
@@ -1714,6 +1711,9 @@ void initialize(void) {
         // A duration has been specified. Calculate the stop time.
         _lf_set_stop_tag((tag_t) {.time = current_tag.time + duration, .microstep = 0});
     }
+
+    // Initialize the trigger table.
+    _lf_initialize_trigger_objects();
 }
 
 /**

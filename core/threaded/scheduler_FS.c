@@ -60,10 +60,12 @@ extern lf_mutex_t mutex;
 extern const inst_t* static_schedules[];
 extern volatile uint32_t counters[];
 extern const size_t num_counters;
+extern tag_t current_tag;
+extern tag_t stop_tag;
+extern instant_t start_time;
 
 /////////////////// Scheduler Variables and Structs /////////////////////////
 _lf_sched_instance_t* _lf_sched_instance;
-size_t num_reactors_reached_stop_tag = 0;
 
 /////////////////// Function Prototypes /////////////////////////
 void execute_inst_EIT(size_t worker_number, int rs1, int rs2, size_t* pc,
@@ -140,6 +142,35 @@ void _lf_sched_wait_for_work(size_t worker_number) {
         // Wait for work to be released.
         lf_semaphore_acquire(_lf_sched_instance->_lf_sched_semaphore);
     }
+}
+
+/**
+ * @brief BIT: Branch If Timeout
+ * Check if timeout is reached. If not, don't do anything.
+ * If so, jump to a specified location (rs1).
+ * 
+ * FIXME: Should the timeout value be an operand?
+ */
+void execute_inst_BIT(size_t worker_number, int rs1, int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop) {
+    bool stop = true;
+    for (int i = 0; i < _lf_sched_instance->num_reactor_self_instances; i++) {
+        if (!_lf_sched_instance->reactor_reached_stop_tag[i]) {
+            stop = false;
+            break;
+        }
+    }
+
+    LF_PRINT_DEBUG("Start time is %lld. Current tag is (%lld, %d). Stop tag is (%lld, %d). Stop array: ", start_time, current_tag.time, current_tag.microstep, stop_tag.time, stop_tag.microstep);
+    for (int i = 0; i < _lf_sched_instance->num_reactor_self_instances; i++) {
+        LF_PRINT_DEBUG("(%lld, %d)",
+            _lf_sched_instance->reactor_self_instances[i]->tag.time,
+            _lf_sched_instance->reactor_self_instances[i]->tag.microstep);
+        LF_PRINT_DEBUG("%d", _lf_sched_instance->reactor_reached_stop_tag[i]);
+    }
+
+    if (stop) *pc = rs1;    // Jump to a specified location.
+    else *pc += 1;          // Increment pc.
 }
 
 /**
@@ -231,25 +262,12 @@ void execute_inst_ADV(size_t worker_number, int rs1, int rs2, size_t* pc,
     reactor->tag.time += rs2;
     reactor->tag.microstep = 0;
 
-    // FIXME: This does not work.
-    // num_reactors_reached_stop_tag cannot increment
-    // when ANY reactor reaches the stop tag, including
-    // the ones that have already reached.
-    /*
-    if (_lf_is_tag_after_stop_tag(reactor->tag))
-        num_reactors_reached_stop_tag++;
-    */
+    if (_lf_is_tag_after_stop_tag(reactor->tag)) {
+        _lf_sched_instance->reactor_reached_stop_tag[rs1] = true;
+    }
    
     lf_mutex_unlock(&mutex);
     *pc += 1; // Increment pc.
-
-    // Check if all reactors reach the stop_tag.
-    // If so, execute an STP instruction.
-    // if (num_reactors_reached_stop_tag >=
-    //     _lf_sched_instance->num_reactor_self_instances) {
-    //     execute_inst_STP(worker_number, rs1, rs2, pc,
-    //                     returned_reaction, exit_loop);
-    // }
 }
 
 /**
@@ -327,6 +345,24 @@ void execute_inst(size_t worker_number, opcode_t op, int rs1, int rs2,
     size_t* pc, reaction_t** returned_reaction, bool* exit_loop) {
     char* op_str = NULL;
     switch (op) {
+        case ADV:
+            op_str = "ADV";
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+                            worker_number, *pc, op_str, rs1, rs2);
+            execute_inst_ADV(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            break;
+        case BIT:
+            op_str = "BIT";
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+                            worker_number, *pc, op_str, rs1, rs2);
+            execute_inst_BIT(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            break;
+         case DU:  
+            op_str = "DU";
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+                            worker_number, *pc, op_str, rs1, rs2);
+            execute_inst_DU(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            break;
         case EIT:
             op_str = "EIT";
             LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
@@ -339,23 +375,11 @@ void execute_inst(size_t worker_number, opcode_t op, int rs1, int rs2,
                             worker_number, *pc, op_str, rs1, rs2);
             execute_inst_EXE(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
             break;
-        case DU:  
-            op_str = "DU";
+        case INC:
+            op_str = "INC";
             LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
                             worker_number, *pc, op_str, rs1, rs2);
-            execute_inst_DU(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
-            break;
-        case WU:
-            op_str = "WU";
-            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
-                            worker_number, *pc, op_str, rs1, rs2);
-            execute_inst_WU(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
-            break;
-        case ADV:
-            op_str = "ADV";
-            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
-                            worker_number, *pc, op_str, rs1, rs2);
-            execute_inst_ADV(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            execute_inst_INC(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
             break;
         case JMP:
             op_str = "JMP";
@@ -369,17 +393,17 @@ void execute_inst(size_t worker_number, opcode_t op, int rs1, int rs2,
                             worker_number, *pc, op_str, rs1, rs2);
             execute_inst_SAC(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
             break;
-        case INC:
-            op_str = "INC";
-            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
-                            worker_number, *pc, op_str, rs1, rs2);
-            execute_inst_INC(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
-            break;
         case STP:
             op_str = "STP";
             LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
                             worker_number, *pc, op_str, rs1, rs2);
             execute_inst_STP(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            break;
+        case WU:
+            op_str = "WU";
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+                            worker_number, *pc, op_str, rs1, rs2);
+            execute_inst_WU(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
             break;
         default:
             lf_print_error("Invalid instruction: %d", op);
@@ -413,7 +437,20 @@ void lf_sched_init(
     _lf_sched_instance->reaction_instances = params->reaction_instances;
     _lf_sched_instance->reactor_self_instances = params->reactor_self_instances;
     _lf_sched_instance->num_reactor_self_instances = params->num_reactor_self_instances;
+    _lf_sched_instance->reactor_reached_stop_tag = params->reactor_reached_stop_tag;
     _lf_sched_instance->counters = counters;
+
+    // FIXME: Why does this show a negative value?
+    LF_PRINT_DEBUG("start_time = %lld", start_time);
+
+    // Initialize the local tags for the FS scheduler.
+    for (int i = 0; i < _lf_sched_instance->num_reactor_self_instances; i++) {
+        _lf_sched_instance->reactor_self_instances[i]->tag.time = start_time;
+        _lf_sched_instance->reactor_self_instances[i]->tag.microstep = 0;
+        LF_PRINT_DEBUG("(%lld, %d)",
+            _lf_sched_instance->reactor_self_instances[i]->tag.time,
+            _lf_sched_instance->reactor_self_instances[i]->tag.microstep);
+    }
 }
 
 /**

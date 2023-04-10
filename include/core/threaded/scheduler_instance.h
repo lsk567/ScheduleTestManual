@@ -164,6 +164,13 @@ typedef struct {
     size_t num_reactor_self_instances;
 
     /**
+     * @brief Points to an array of bools indicating whether
+     * a reactor reaches stop.
+     * 
+     */
+    bool* reactor_reached_stop_tag;
+
+    /**
      * @brief Points to an array of pointers to reaction instances.
      * 
      */
