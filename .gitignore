@@ -7,4 +7,5 @@ tracing/
 *.dot
 *.out
 *.png
-perf.txt
+*.data
+*.script
