@@ -3,3 +3,8 @@
 build/
 tracing/
 .DS_Store
+
+*.dot
+*.out
+*.png
+perf.txt
