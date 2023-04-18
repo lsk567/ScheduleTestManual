@@ -150,6 +150,8 @@ void _lf_sched_wait_for_work(size_t worker_number) {
  * If so, jump to a specified location (rs1).
  * 
  * FIXME: Should the timeout value be an operand?
+ * FIXME: Use a global variable num_active_reactors instead of iterating over
+ * a for loop.
  */
 void execute_inst_BIT(size_t worker_number, int rs1, int rs2, size_t* pc,
     reaction_t** returned_reaction, bool* exit_loop) {
@@ -256,7 +258,10 @@ void execute_inst_WU(size_t worker_number, int rs1, int rs2, size_t* pc,
  */
 void execute_inst_ADV(size_t worker_number, int rs1, int rs2, size_t* pc,
     reaction_t** returned_reaction, bool* exit_loop) {
+    
+    // FIXME: This mutex might be very expensive.
     lf_mutex_lock(&mutex);
+
     self_base_t* reactor =
         _lf_sched_instance->reactor_self_instances[rs1];
     reactor->tag.time += rs2;
@@ -267,6 +272,7 @@ void execute_inst_ADV(size_t worker_number, int rs1, int rs2, size_t* pc,
     }
    
     lf_mutex_unlock(&mutex);
+
     *pc += 1; // Increment pc.
 }
 
