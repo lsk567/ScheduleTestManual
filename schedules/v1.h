@@ -1,5 +1,5 @@
 /**
- * @brief Just swap the schedules for thread 0 and thread 1.
+ * @brief A supposedly generated file.
  * 
  * VM Instructions Set
  * - EIT    rs1         : Execute a reaction (rs1) If Triggered. FIXME: Combine with a branch.
@@ -25,19 +25,6 @@
 // #include "core/threaded/scheduler_static_types.h"
 
 const inst_t schedule_0[] = {
-    {.op=BIT,   .rs1=9,     .rs2=-1},       // BIT if timeout, jump to line 9.
-    {.op=EXE,   .rs1=0,     .rs2=-1},       // EXE source.0
-    {.op=INC,   .rs1=0,     .rs2=1},        // INC counter 0 by 1
-    {.op=EXE,   .rs1=1,     .rs2=-1},       // EXE source2.0
-    {.op=INC,   .rs1=1,     .rs2=1},        // INC counter 1 by 1
-    {.op=ADV,   .rs1=0,     .rs2=10000000}, // ADV source,  10000000
-    {.op=ADV,   .rs1=1,     .rs2=10000000}, // ADV source2, 10000000
-    {.op=SAC,   .rs1=-1,    .rs2=-1},       // Sync all workers And Clear counters
-    {.op=JMP,   .rs1=0,     .rs2=-1},       // JMP to line 0
-    {.op=STP,   .rs1=-1,     .rs2=-1},      // STP
-};
-
-const inst_t schedule_1[] = {
     {.op=BIT,   .rs1=13,     .rs2=-1},      // BIT if timeout, jump to line 13.
     {.op=EXE,   .rs1=2,     .rs2=-1},       // EXE sink.0
     {.op=INC,   .rs1=0,     .rs2=1},        // INC counter 0 by 1
@@ -49,6 +36,19 @@ const inst_t schedule_1[] = {
     {.op=ADV,   .rs1=2,     .rs2=5000000},  // ADV sink, 5000000
     {.op=EXE,   .rs1=2,     .rs2=-1},       // EXE sink.0
     {.op=ADV,   .rs1=2,     .rs2=5000000},  // ADV sink, 5000000
+    {.op=SAC,   .rs1=-1,    .rs2=-1},       // Sync all workers And Clear counters
+    {.op=JMP,   .rs1=0,     .rs2=-1},       // JMP to line 0
+    {.op=STP,   .rs1=-1,     .rs2=-1},      // STP
+};
+
+const inst_t schedule_1[] = {
+    {.op=BIT,   .rs1=9,     .rs2=-1},       // BIT if timeout, jump to line 9.
+    {.op=EXE,   .rs1=0,     .rs2=-1},       // EXE source.0
+    {.op=INC,   .rs1=0,     .rs2=1},        // INC counter 0 by 1
+    {.op=EXE,   .rs1=1,     .rs2=-1},       // EXE source2.0
+    {.op=INC,   .rs1=1,     .rs2=1},        // INC counter 1 by 1
+    {.op=ADV,   .rs1=0,     .rs2=10000000}, // ADV source,  10000000
+    {.op=ADV,   .rs1=1,     .rs2=10000000}, // ADV source2, 10000000
     {.op=SAC,   .rs1=-1,    .rs2=-1},       // Sync all workers And Clear counters
     {.op=JMP,   .rs1=0,     .rs2=-1},       // JMP to line 0
     {.op=STP,   .rs1=-1,     .rs2=-1},      // STP
