@@ -46,7 +46,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "scheduler.h"
 
 #if SCHEDULER == FS
-#include "scheduler_static_types.h"
+#include "scheduler_instructions.h"
 #endif
 
 extern lf_mutex_t mutex;

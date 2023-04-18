@@ -1,17 +1,6 @@
 /**
  * @brief Just swap the schedules for thread 0 and thread 1.
- * 
- * VM Instructions Set
- * - EIT    rs1         : Execute a reaction (rs1) If Triggered. FIXME: Combine with a branch.
- * - EXE    rs1         : EXEcute a reaction (rs1) (used for known triggers such as startup, shutdown, and timers).
- * - DU     rs1,    rs2 : Delay Until a physical timepoint (rs1) plus an offset (rs2) is reached.
- * - WU     rs1,    rs2 : Wait Until a counting variable (rs1) to reach a desired value (rs2).
- * - ADV    rs1,    rs2 : ADVance the logical time of a reactor (rs1) by a specified amount (rs2). Add a delay_until here.
- * - JMP    rs1         : JuMP to a location.
- * - INC    rs1,    rs2 : INCrement a counter (rs1) by an amount (rs2).
- * - SAC                : (Sync-And-Clear) synchronize all workers until all execute SAC and let the last idle worker reset all counters to 0.
- * - STP                : SToP the execution.
- * 
+ *
  * reaction array:
  * [0=source.0, 1=source2.0, 2=sink.0, 3=sink.1, 4=sink.2]
  * 
@@ -22,7 +11,7 @@
  * [0=sink.1 waiting on sink.0 & source.0, 1=sink.2 waiting on sink.1 & source2.0]
  */
 
-// #include "core/threaded/scheduler_static_types.h"
+// #include "core/threaded/scheduler_instructions.h"
 
 const inst_t schedule_0[] = {
     {.op=BIT,   .rs1=9,     .rs2=-1},       // BIT if timeout, jump to line 9.
