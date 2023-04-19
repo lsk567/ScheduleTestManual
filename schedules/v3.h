@@ -23,11 +23,11 @@ const inst_t schedule_0[] = {
     {.op=ADV,   .rs1=1,     .rs2=10000000}, // ADV source2, 10000000
     {.op=SAC,   .rs1=-1,    .rs2=-1},       // Sync all workers And Clear counters
     {.op=JMP,   .rs1=0,     .rs2=-1},       // JMP to line 0
-    {.op=STP,   .rs1=-1,     .rs2=-1},      // STP
+    {.op=STP,   .rs1=-1,    .rs2=-1},       // STP
 };
 
 const inst_t schedule_1[] = {
-    {.op=BIT,   .rs1=11,     .rs2=-1},      // BIT if timeout, jump to line 13.
+    {.op=BIT,   .rs1=11,    .rs2=-1},       // BIT if timeout, jump to line 13.
     {.op=EXE,   .rs1=2,     .rs2=-1},       // EXE sink.0
     {.op=WU,    .rs1=0,     .rs2=1},        // WU counter 0 reaches 1
     {.op=EIT,   .rs1=3,     .rs2=-1},       // EIT sink.1
@@ -38,7 +38,7 @@ const inst_t schedule_1[] = {
     {.op=ADV,   .rs1=2,     .rs2=5000000},  // ADV sink, 5000000
     {.op=SAC,   .rs1=-1,    .rs2=-1},       // Sync all workers And Clear counters
     {.op=JMP,   .rs1=0,     .rs2=-1},       // JMP to line 0
-    {.op=STP,   .rs1=-1,     .rs2=-1},      // STP
+    {.op=STP,   .rs1=-1,    .rs2=-1},       // STP
 };
 
 const inst_t* static_schedules[] = {

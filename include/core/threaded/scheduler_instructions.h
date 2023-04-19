@@ -16,6 +16,7 @@
  */
 typedef enum {
     ADV,
+    ADV2,   // Lock-free. The compiler needs to guarantee only a single thread can update a reactor's tag.
     BIT,
     DU,
     EIT,

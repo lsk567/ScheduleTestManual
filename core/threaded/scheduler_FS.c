@@ -67,26 +67,6 @@ extern instant_t start_time;
 /////////////////// Scheduler Variables and Structs /////////////////////////
 _lf_sched_instance_t* _lf_sched_instance;
 
-/////////////////// Function Prototypes /////////////////////////
-void execute_inst_EIT(size_t worker_number, int rs1, int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop);
-void execute_inst_EXE(size_t worker_number, int rs1, int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop);
-void execute_inst_DU(size_t worker_number, int rs1, int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop);
-void execute_inst_WU(size_t worker_number, int rs1, int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop);
-void execute_inst_ADV(size_t worker_number, int rs1, int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop);
-void execute_inst_JMP(size_t worker_number, int rs1, int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop);
-void execute_inst_SAC(size_t worker_number, int rs1, int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop);
-void execute_inst_INC(size_t worker_number, int rs1, int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop);
-void execute_inst_STP(size_t worker_number, int rs1, int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop);
-
 /////////////////// Scheduler Private API /////////////////////////
 
 /**
@@ -277,6 +257,30 @@ void execute_inst_ADV(size_t worker_number, int rs1, int rs2, size_t* pc,
 }
 
 /**
+ * @brief ADV: Advance time for a particular reactor.
+ * 
+ * @param rs1 
+ * @param rs2 
+ * @param pc 
+ * @param returned_reaction 
+ * @param exit_loop 
+ */
+void execute_inst_ADV2(size_t worker_number, int rs1, int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop) {
+
+    self_base_t* reactor =
+        _lf_sched_instance->reactor_self_instances[rs1];
+    reactor->tag.time += rs2;
+    reactor->tag.microstep = 0;
+
+    if (_lf_is_tag_after_stop_tag(reactor->tag)) {
+        _lf_sched_instance->reactor_reached_stop_tag[rs1] = true;
+    }
+   
+    *pc += 1; // Increment pc.
+}
+
+/**
  * @brief JMP: Jump to a particular line in the schedule.
  * 
  * @param rs1 
@@ -372,6 +376,12 @@ void execute_inst(size_t worker_number, opcode_t op, int rs1, int rs2,
             LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
                             worker_number, *pc, op_str, rs1, rs2);
             execute_inst_ADV(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            break;
+        case ADV2:
+            op_str = "ADV2";
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+                            worker_number, *pc, op_str, rs1, rs2);
+            execute_inst_ADV2(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
             break;
         case BIT:
             op_str = "BIT";
