@@ -326,6 +326,22 @@ void execute_inst_INC(size_t worker_number, int rs1, int rs2, size_t* pc,
 }
 
 /**
+ * @brief INC2: [Lock-free] INCrement a counter (rs1) by an amount (rs2).
+ * The compiler needs to guarantee a single writer.
+ * 
+ * @param rs1 
+ * @param rs2 
+ * @param pc 
+ * @param returned_reaction 
+ * @param exit_loop 
+ */
+void execute_inst_INC2(size_t worker_number, int rs1, int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop) {
+    _lf_sched_instance->counters[rs1] += rs2;
+    *pc += 1; // Increment pc.
+}
+
+/**
  * @brief STP: SToP the execution.
  * 
  */
@@ -387,6 +403,12 @@ void execute_inst(size_t worker_number, opcode_t op, int rs1, int rs2,
                             worker_number, *pc, op_str, rs1, rs2);
             execute_inst_INC(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
             break;
+        case INC2:
+            op_str = "INC2";
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+                            worker_number, *pc, op_str, rs1, rs2);
+            execute_inst_INC2(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            break;
         case JMP:
             op_str = "JMP";
             LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
@@ -412,7 +434,7 @@ void execute_inst(size_t worker_number, opcode_t op, int rs1, int rs2,
             execute_inst_WU(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
             break;
         default:
-            lf_print_error("Invalid instruction: %d", op);
+            lf_print_error_and_exit("Invalid instruction: %d", op);
     }
 }
 

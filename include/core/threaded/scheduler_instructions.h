@@ -21,6 +21,7 @@ typedef enum {
     EIT,
     EXE,
     INC,
+    INC2,   // Lock-free. The compiler needs to guarantee single writer.
     JMP,
     SAC,
     STP,
