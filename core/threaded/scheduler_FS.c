@@ -221,9 +221,9 @@ void execute_inst_DU(size_t worker_number, int rs1, int rs2, size_t* pc,
  */
 void execute_inst_WU(size_t worker_number, int rs1, int rs2, size_t* pc,
     reaction_t** returned_reaction, bool* exit_loop) {
-    while(_lf_sched_instance->counters[rs1] < rs2) {
-        LF_PRINT_DEBUG("*** Worker %zu waiting", worker_number);
-    }
+    LF_PRINT_DEBUG("*** Worker %zu waiting", worker_number);
+    while(_lf_sched_instance->counters[rs1] < rs2);
+    LF_PRINT_DEBUG("*** Worker %zu done waiting", worker_number);
     *pc += 1; // Increment pc.
 }
 
