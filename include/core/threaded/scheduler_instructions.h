@@ -30,7 +30,7 @@ typedef enum {
 } opcode_t;
 
 typedef struct inst_t {
-    opcode_t    op;
-    int         rs1;
-    int         rs2;
+    opcode_t        op;
+    long long int   rs1;
+    long long int   rs2;
 } inst_t;

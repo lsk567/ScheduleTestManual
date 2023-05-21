@@ -58,6 +58,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /////////////////// External Variables /////////////////////////
 extern lf_mutex_t mutex;
 extern const inst_t* static_schedules[];
+extern volatile uint32_t hyperperiod_iterations[];
 extern volatile uint32_t counters[];
 extern const size_t num_counters;
 extern tag_t current_tag;
@@ -133,8 +134,8 @@ void _lf_sched_wait_for_work(size_t worker_number) {
  * FIXME: Use a global variable num_active_reactors instead of iterating over
  * a for loop.
  */
-void execute_inst_BIT(size_t worker_number, int rs1, int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop) {
+void execute_inst_BIT(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
     bool stop = true;
     for (int i = 0; i < _lf_sched_instance->num_reactor_self_instances; i++) {
         if (!_lf_sched_instance->reactor_reached_stop_tag[i]) {
@@ -166,8 +167,8 @@ void execute_inst_BIT(size_t worker_number, int rs1, int rs2, size_t* pc,
  * @param returned_reaction 
  * @param exit_loop 
  */
-void execute_inst_EIT(size_t worker_number, int rs1, int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop) {
+void execute_inst_EIT(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
     reaction_t* reaction = _lf_sched_instance->reaction_instances[rs1];
     if (reaction->status == queued) {
         *returned_reaction = reaction;
@@ -186,8 +187,8 @@ void execute_inst_EIT(size_t worker_number, int rs1, int rs2, size_t* pc,
  * @param returned_reaction 
  * @param exit_loop 
  */
-void execute_inst_EXE(size_t worker_number, int rs1, int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop) {
+void execute_inst_EXE(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
     reaction_t* reaction = _lf_sched_instance->reaction_instances[rs1];
     *returned_reaction = reaction;
     *exit_loop = true;
@@ -204,10 +205,17 @@ void execute_inst_EXE(size_t worker_number, int rs1, int rs2, size_t* pc,
  * @param returned_reaction 
  * @param exit_loop 
  */
-void execute_inst_DU(size_t worker_number, int rs1, int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop) {
-    LF_PRINT_DEBUG("*** NOT IMPLEMENTED: DU");
-    *exit_loop = true;
+void execute_inst_DU(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
+    // FIXME: There seems to be an overflow problem.
+    // When wakeup_time overflows but lf_time_physical() doesn't,
+    // lf_sleep_until_locked() terminates immediately. 
+    instant_t wakeup_time = physical_start_time + rs1 * (*iteration + 1);
+    LF_PRINT_DEBUG("physical_start_time: %lld, wakeup_time: %lld, rs1: %lld, iteration+1: %d, current_physical_time: %ld\n", physical_start_time, wakeup_time, rs1, (*iteration + 1), lf_time_physical());
+    LF_PRINT_DEBUG("*** Worker %zu delaying", worker_number);
+    lf_sleep_until_locked(wakeup_time);
+    LF_PRINT_DEBUG("*** Worker %zu done delaying", worker_number);
+    *pc += 1; // Increment pc.
 }
 
 /**
@@ -219,8 +227,8 @@ void execute_inst_DU(size_t worker_number, int rs1, int rs2, size_t* pc,
  * @param returned_reaction 
  * @param exit_loop 
  */
-void execute_inst_WU(size_t worker_number, int rs1, int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop) {
+void execute_inst_WU(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
     LF_PRINT_DEBUG("*** Worker %zu waiting", worker_number);
     while(_lf_sched_instance->counters[rs1] < rs2);
     LF_PRINT_DEBUG("*** Worker %zu done waiting", worker_number);
@@ -236,8 +244,8 @@ void execute_inst_WU(size_t worker_number, int rs1, int rs2, size_t* pc,
  * @param returned_reaction 
  * @param exit_loop 
  */
-void execute_inst_ADV(size_t worker_number, int rs1, int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop) {
+void execute_inst_ADV(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
     
     // FIXME: This mutex might be very expensive.
     lf_mutex_lock(&mutex);
@@ -265,8 +273,8 @@ void execute_inst_ADV(size_t worker_number, int rs1, int rs2, size_t* pc,
  * @param returned_reaction 
  * @param exit_loop 
  */
-void execute_inst_ADV2(size_t worker_number, int rs1, int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop) {
+void execute_inst_ADV2(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
 
     self_base_t* reactor =
         _lf_sched_instance->reactor_self_instances[rs1];
@@ -289,8 +297,9 @@ void execute_inst_ADV2(size_t worker_number, int rs1, int rs2, size_t* pc,
  * @param returned_reaction 
  * @param exit_loop 
  */
-void execute_inst_JMP(size_t worker_number, int rs1, int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop) {
+void execute_inst_JMP(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
+    if (rs2 != -1) *iteration += 1;
     *pc = rs1;
 }
 
@@ -304,12 +313,12 @@ void execute_inst_JMP(size_t worker_number, int rs1, int rs2, size_t* pc,
  * @param returned_reaction 
  * @param exit_loop 
  */
-void execute_inst_SAC(size_t worker_number, int rs1, int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop) {
+void execute_inst_SAC(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
     tracepoint_worker_wait_starts(worker_number);
     _lf_sched_wait_for_work(worker_number);
     tracepoint_worker_wait_ends(worker_number);
-    *pc += 1; // Increment pc.
+    *pc += 1;           // Increment pc.
 }
 
 /**
@@ -321,8 +330,8 @@ void execute_inst_SAC(size_t worker_number, int rs1, int rs2, size_t* pc,
  * @param returned_reaction 
  * @param exit_loop 
  */
-void execute_inst_INC(size_t worker_number, int rs1, int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop) {
+void execute_inst_INC(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
     lf_mutex_lock(&mutex);
     _lf_sched_instance->counters[rs1] += rs2;
     lf_mutex_unlock(&mutex);
@@ -339,8 +348,8 @@ void execute_inst_INC(size_t worker_number, int rs1, int rs2, size_t* pc,
  * @param returned_reaction 
  * @param exit_loop 
  */
-void execute_inst_INC2(size_t worker_number, int rs1, int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop) {
+void execute_inst_INC2(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
     _lf_sched_instance->counters[rs1] += rs2;
     *pc += 1; // Increment pc.
 }
@@ -349,8 +358,8 @@ void execute_inst_INC2(size_t worker_number, int rs1, int rs2, size_t* pc,
  * @brief STP: SToP the execution.
  * 
  */
-void execute_inst_STP(size_t worker_number, int rs1, int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop) {
+void execute_inst_STP(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
+    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
     *exit_loop = true;
 }
 
@@ -367,81 +376,81 @@ void execute_inst_STP(size_t worker_number, int rs1, int rs2, size_t* pc,
  * @param exit_loop a pointer to a boolean indicating whether
  *                  the outer while loop should be exited
  */
-void execute_inst(size_t worker_number, opcode_t op, int rs1, int rs2,
-    size_t* pc, reaction_t** returned_reaction, bool* exit_loop) {
+void execute_inst(size_t worker_number, opcode_t op, long long int rs1, long long int rs2,
+    size_t* pc, reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
     char* op_str = NULL;
     switch (op) {
         case ADV:
             op_str = "ADV";
-            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %lld %lld",
                             worker_number, *pc, op_str, rs1, rs2);
-            execute_inst_ADV(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            execute_inst_ADV(worker_number, rs1, rs2, pc, returned_reaction, exit_loop, iteration);
             break;
         case ADV2:
             op_str = "ADV2";
-            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %lld %lld",
                             worker_number, *pc, op_str, rs1, rs2);
-            execute_inst_ADV2(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            execute_inst_ADV2(worker_number, rs1, rs2, pc, returned_reaction, exit_loop, iteration);
             break;
         case BIT:
             op_str = "BIT";
-            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %lld %lld",
                             worker_number, *pc, op_str, rs1, rs2);
-            execute_inst_BIT(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            execute_inst_BIT(worker_number, rs1, rs2, pc, returned_reaction, exit_loop, iteration);
             break;
          case DU:  
             op_str = "DU";
-            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %lld %lld",
                             worker_number, *pc, op_str, rs1, rs2);
-            execute_inst_DU(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            execute_inst_DU(worker_number, rs1, rs2, pc, returned_reaction, exit_loop, iteration);
             break;
         case EIT:
             op_str = "EIT";
-            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %lld %lld",
                             worker_number, *pc, op_str, rs1, rs2);
-            execute_inst_EIT(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            execute_inst_EIT(worker_number, rs1, rs2, pc, returned_reaction, exit_loop, iteration);
             break;
         case EXE:
             op_str = "EXE";
-            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %lld %lld",
                             worker_number, *pc, op_str, rs1, rs2);
-            execute_inst_EXE(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            execute_inst_EXE(worker_number, rs1, rs2, pc, returned_reaction, exit_loop, iteration);
             break;
         case INC:
             op_str = "INC";
-            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %lld %lld",
                             worker_number, *pc, op_str, rs1, rs2);
-            execute_inst_INC(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            execute_inst_INC(worker_number, rs1, rs2, pc, returned_reaction, exit_loop, iteration);
             break;
         case INC2:
             op_str = "INC2";
-            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %lld %lld",
                             worker_number, *pc, op_str, rs1, rs2);
-            execute_inst_INC2(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            execute_inst_INC2(worker_number, rs1, rs2, pc, returned_reaction, exit_loop, iteration);
             break;
         case JMP:
             op_str = "JMP";
-            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %lld %lld",
                             worker_number, *pc, op_str, rs1, rs2);
-            execute_inst_JMP(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            execute_inst_JMP(worker_number, rs1, rs2, pc, returned_reaction, exit_loop, iteration);
             break;
         case SAC:
             op_str = "SAC";
-            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %lld %lld",
                             worker_number, *pc, op_str, rs1, rs2);
-            execute_inst_SAC(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            execute_inst_SAC(worker_number, rs1, rs2, pc, returned_reaction, exit_loop, iteration);
             break;
         case STP:
             op_str = "STP";
-            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %lld %lld",
                             worker_number, *pc, op_str, rs1, rs2);
-            execute_inst_STP(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            execute_inst_STP(worker_number, rs1, rs2, pc, returned_reaction, exit_loop, iteration);
             break;
         case WU:
             op_str = "WU";
-            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %d %d",
+            LF_PRINT_DEBUG("*** Current instruction for worker %zu: [Line %zu] %s %lld %lld",
                             worker_number, *pc, op_str, rs1, rs2);
-            execute_inst_WU(worker_number, rs1, rs2, pc, returned_reaction, exit_loop);
+            execute_inst_WU(worker_number, rs1, rs2, pc, returned_reaction, exit_loop, iteration);
             break;
         default:
             lf_print_error_and_exit("Invalid instruction: %d", op);
@@ -523,8 +532,9 @@ reaction_t* lf_sched_get_ready_reaction(int worker_number) {
     bool            exit_loop           = false;
     size_t*         pc                  = &_lf_sched_instance->pc[worker_number];
     opcode_t        op;
-    int             rs1;
-    int             rs2;
+    long long int   rs1;
+    long long int   rs2;
+    int*            iteration           = &hyperperiod_iterations[worker_number];
 
     while (!exit_loop) {
         op  = current_schedule[*pc].op;
@@ -533,7 +543,7 @@ reaction_t* lf_sched_get_ready_reaction(int worker_number) {
 
         // Execute the current instruction
         execute_inst(worker_number, op, rs1, rs2, pc,
-                    &returned_reaction, &exit_loop);
+                    &returned_reaction, &exit_loop, iteration);
 
         LF_PRINT_DEBUG("Worker %d: returned_reaction = %p, exit_loop = %d",
                         worker_number, returned_reaction, exit_loop);

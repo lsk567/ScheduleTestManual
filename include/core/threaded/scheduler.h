@@ -71,6 +71,7 @@ typedef struct {
     size_t num_reactor_self_instances;
     bool* reactor_reached_stop_tag;
     reaction_t** reaction_instances;
+    instant_t hyperperiod_duration;
 } sched_params_t;
 
 /**

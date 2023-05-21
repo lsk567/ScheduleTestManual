@@ -50,7 +50,7 @@ void sourcereaction_function_0(void* instance_args) {
     source_self_t* self = (source_self_t*)instance_args; SUPPRESS_UNUSED_WARNING(self);
     source_out_t* out = &self->_lf_out;
     lf_set(out, self->s++);
-    //lf_print("Inside source reaction_0");
+    lf_print("Inside source reaction_0");
 }
 #include "include/api/set_undef.h"
 source_self_t* new_Source() {
@@ -147,7 +147,7 @@ typedef struct {
 void sinkreaction_function_0(void* instance_args) {
     sink_self_t* self = (sink_self_t*)instance_args; SUPPRESS_UNUSED_WARNING(self);
     self->sum++;
-    //lf_print("Sum: %d", self->sum);
+    lf_print("Sum: %d", self->sum);
 }
 #include "include/api/set_undef.h"
 #include "include/api/set.h"
@@ -156,7 +156,7 @@ void sinkreaction_function_1(void* instance_args) {
     sink_in_t* in = self->_lf_in;
     int in_width = self->_lf_in_width; SUPPRESS_UNUSED_WARNING(in_width);
     self->sum += in->value;
-    //lf_print("Sum: %d", self->sum);
+    lf_print("Sum: %d", self->sum);
 }
 #include "include/api/set_undef.h"
 #include "include/api/set.h"
@@ -165,7 +165,7 @@ void sinkreaction_function_2(void* instance_args) {
     sink_in2_t* in2 = self->_lf_in2;
     int in2_width = self->_lf_in2_width; SUPPRESS_UNUSED_WARNING(in2_width);
     self->sum += in2->value;
-    //lf_print("Sum: %d", self->sum);
+    lf_print("Sum: %d", self->sum);
 }
 #include "include/api/set_undef.h"
 sink_self_t* new_Sink() {
