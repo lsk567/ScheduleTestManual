@@ -11,7 +11,9 @@
  * [0=sink.1 waiting on sink.0 & source.0, 1=sink.2 waiting on sink.1 & source2.0]
  */
 
-// #include "core/threaded/scheduler_instructions.h"
+#include <stdint.h>
+#include <stddef.h> // size_t
+#include "../core/threaded/scheduler_instructions.h"
 
 const inst_t schedule_0[] = {
     {.op=BIT,   .rs1=13,     .rs2=-1},      // BIT if timeout, jump to line 13.

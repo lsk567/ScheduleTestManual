@@ -32,7 +32,7 @@ add_executable(
     ${LF_MAIN_TARGET}
     lib/schedule.c
     ScheduleTest.c
-    # static_schedule.c # Generated
+    schedules/v10.c # Schedule file
 )
 target_link_libraries(${LF_MAIN_TARGET} PRIVATE core)
 target_include_directories(${LF_MAIN_TARGET} PUBLIC include/)

@@ -53,7 +53,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "trace.h"
 #include "util.h"
 
-#include "../../static_schedule.h" // Generated
+// #include "../../static_schedule.h" // Generated
 
 /////////////////// External Variables /////////////////////////
 extern lf_mutex_t mutex;
@@ -318,7 +318,7 @@ void execute_inst_SAC(size_t worker_number, long long int rs1, long long int rs2
     tracepoint_worker_wait_starts(worker_number);
     _lf_sched_wait_for_work(worker_number);
     tracepoint_worker_wait_ends(worker_number);
-    *pc += 1;           // Increment pc.
+    *pc += 1; // Increment pc.
 }
 
 /**

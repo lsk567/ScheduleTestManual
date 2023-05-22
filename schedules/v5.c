@@ -11,7 +11,9 @@
  * [0=thread 0]
  */
 
-// #include "core/threaded/scheduler_instructions.h"
+#include <stdint.h>
+#include <stddef.h> // size_t
+#include "../core/threaded/scheduler_instructions.h"
 
 const inst_t schedule_0[] = {
     {.op=BIT,   .rs1=6,     .rs2=-1},       // BIT if timeout, jump to line 6.
