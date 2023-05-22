@@ -29,12 +29,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ***************/
 
 /**
- * Non-preemptive scheduler for the threaded runtime of the C target of Lingua
- * Franca.
+ * A fully static (FS) scheduler for the threaded runtime of the C target of
+ * Lingua Franca.
  *
- * @author{Soroush Bateni <soroush@utdallas.edu>}
- * @author{Edward A. Lee <eal@berkeley.edu>}
- * @author{Marten Lohstroh <marten@berkeley.edu>}
+ * @author{Shaokai Lin <shaokai@berkeley.edu>}
  */
 #include "lf_types.h"
 #if SCHEDULER == FS || (!defined(SCHEDULER) && defined(LF_THREADED))
@@ -52,8 +50,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "semaphore.h"
 #include "trace.h"
 #include "util.h"
-
-// #include "../../static_schedule.h" // Generated
 
 /////////////////// External Variables /////////////////////////
 extern lf_mutex_t mutex;
@@ -135,7 +131,7 @@ void _lf_sched_wait_for_work(size_t worker_number) {
  * a for loop.
  */
 void execute_inst_BIT(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
+    reaction_t** returned_reaction, bool* exit_loop, volatile int* iteration) {
     bool stop = true;
     for (int i = 0; i < _lf_sched_instance->num_reactor_self_instances; i++) {
         if (!_lf_sched_instance->reactor_reached_stop_tag[i]) {
@@ -144,9 +140,9 @@ void execute_inst_BIT(size_t worker_number, long long int rs1, long long int rs2
         }
     }
 
-    LF_PRINT_DEBUG("Start time is %lld. Current tag is (%lld, %d). Stop tag is (%lld, %d). Stop array: ", start_time, current_tag.time, current_tag.microstep, stop_tag.time, stop_tag.microstep);
+    LF_PRINT_DEBUG("Start time is %ld. Current tag is (%ld, %d). Stop tag is (%ld, %d). Stop array: ", start_time, current_tag.time, current_tag.microstep, stop_tag.time, stop_tag.microstep);
     for (int i = 0; i < _lf_sched_instance->num_reactor_self_instances; i++) {
-        LF_PRINT_DEBUG("(%lld, %d)",
+        LF_PRINT_DEBUG("(%ld, %d)",
             _lf_sched_instance->reactor_self_instances[i]->tag.time,
             _lf_sched_instance->reactor_self_instances[i]->tag.microstep);
         LF_PRINT_DEBUG("%d", _lf_sched_instance->reactor_reached_stop_tag[i]);
@@ -168,7 +164,7 @@ void execute_inst_BIT(size_t worker_number, long long int rs1, long long int rs2
  * @param exit_loop 
  */
 void execute_inst_EIT(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
+    reaction_t** returned_reaction, bool* exit_loop, volatile int* iteration) {
     reaction_t* reaction = _lf_sched_instance->reaction_instances[rs1];
     if (reaction->status == queued) {
         *returned_reaction = reaction;
@@ -188,7 +184,7 @@ void execute_inst_EIT(size_t worker_number, long long int rs1, long long int rs2
  * @param exit_loop 
  */
 void execute_inst_EXE(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
+    reaction_t** returned_reaction, bool* exit_loop, volatile int* iteration) {
     reaction_t* reaction = _lf_sched_instance->reaction_instances[rs1];
     *returned_reaction = reaction;
     *exit_loop = true;
@@ -206,12 +202,12 @@ void execute_inst_EXE(size_t worker_number, long long int rs1, long long int rs2
  * @param exit_loop 
  */
 void execute_inst_DU(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
+    reaction_t** returned_reaction, bool* exit_loop, volatile int* iteration) {
     // FIXME: There seems to be an overflow problem.
     // When wakeup_time overflows but lf_time_physical() doesn't,
     // lf_sleep_until_locked() terminates immediately. 
     instant_t wakeup_time = physical_start_time + rs1 * (*iteration + 1);
-    LF_PRINT_DEBUG("physical_start_time: %lld, wakeup_time: %lld, rs1: %lld, iteration+1: %d, current_physical_time: %ld\n", physical_start_time, wakeup_time, rs1, (*iteration + 1), lf_time_physical());
+    LF_PRINT_DEBUG("physical_start_time: %ld, wakeup_time: %ld, rs1: %lld, iteration+1: %d, current_physical_time: %ld\n", physical_start_time, wakeup_time, rs1, (*iteration + 1), lf_time_physical());
     LF_PRINT_DEBUG("*** Worker %zu delaying", worker_number);
     lf_sleep_until_locked(wakeup_time);
     LF_PRINT_DEBUG("*** Worker %zu done delaying", worker_number);
@@ -228,7 +224,7 @@ void execute_inst_DU(size_t worker_number, long long int rs1, long long int rs2,
  * @param exit_loop 
  */
 void execute_inst_WU(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
+    reaction_t** returned_reaction, bool* exit_loop, volatile int* iteration) {
     LF_PRINT_DEBUG("*** Worker %zu waiting", worker_number);
     while(_lf_sched_instance->counters[rs1] < rs2);
     LF_PRINT_DEBUG("*** Worker %zu done waiting", worker_number);
@@ -245,7 +241,7 @@ void execute_inst_WU(size_t worker_number, long long int rs1, long long int rs2,
  * @param exit_loop 
  */
 void execute_inst_ADV(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
+    reaction_t** returned_reaction, bool* exit_loop, volatile int* iteration) {
     
     // This mutex is quite expensive.
     lf_mutex_lock(&mutex);
@@ -274,7 +270,7 @@ void execute_inst_ADV(size_t worker_number, long long int rs1, long long int rs2
  * @param exit_loop 
  */
 void execute_inst_ADV2(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
+    reaction_t** returned_reaction, bool* exit_loop, volatile int* iteration) {
 
     self_base_t* reactor =
         _lf_sched_instance->reactor_self_instances[rs1];
@@ -298,7 +294,7 @@ void execute_inst_ADV2(size_t worker_number, long long int rs1, long long int rs
  * @param exit_loop 
  */
 void execute_inst_JMP(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
+    reaction_t** returned_reaction, bool* exit_loop, volatile int* iteration) {
     if (rs2 != -1) *iteration += 1;
     *pc = rs1;
 }
@@ -314,7 +310,7 @@ void execute_inst_JMP(size_t worker_number, long long int rs1, long long int rs2
  * @param exit_loop 
  */
 void execute_inst_SAC(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
+    reaction_t** returned_reaction, bool* exit_loop, volatile int* iteration) {
     tracepoint_worker_wait_starts(worker_number);
     _lf_sched_wait_for_work(worker_number);
     tracepoint_worker_wait_ends(worker_number);
@@ -331,7 +327,7 @@ void execute_inst_SAC(size_t worker_number, long long int rs1, long long int rs2
  * @param exit_loop 
  */
 void execute_inst_INC(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
+    reaction_t** returned_reaction, bool* exit_loop, volatile int* iteration) {
     lf_mutex_lock(&mutex);
     _lf_sched_instance->counters[rs1] += rs2;
     lf_mutex_unlock(&mutex);
@@ -349,7 +345,7 @@ void execute_inst_INC(size_t worker_number, long long int rs1, long long int rs2
  * @param exit_loop 
  */
 void execute_inst_INC2(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
+    reaction_t** returned_reaction, bool* exit_loop, volatile int* iteration) {
     _lf_sched_instance->counters[rs1] += rs2;
     *pc += 1; // Increment pc.
 }
@@ -359,7 +355,7 @@ void execute_inst_INC2(size_t worker_number, long long int rs1, long long int rs
  * 
  */
 void execute_inst_STP(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
-    reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
+    reaction_t** returned_reaction, bool* exit_loop, volatile int* iteration) {
     *exit_loop = true;
 }
 
@@ -377,7 +373,7 @@ void execute_inst_STP(size_t worker_number, long long int rs1, long long int rs2
  *                  the outer while loop should be exited
  */
 void execute_inst(size_t worker_number, opcode_t op, long long int rs1, long long int rs2,
-    size_t* pc, reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
+    size_t* pc, reaction_t** returned_reaction, bool* exit_loop, volatile volatile int* iteration) {
     char* op_str = NULL;
     switch (op) {
         case ADV:
@@ -490,7 +486,7 @@ void lf_sched_init(
         for (int i = 0; i < _lf_sched_instance->num_reactor_self_instances; i++) {
             _lf_sched_instance->reactor_self_instances[i]->tag.time = start_time;
             _lf_sched_instance->reactor_self_instances[i]->tag.microstep = 0;
-            LF_PRINT_DEBUG("(%lld, %d)",
+            LF_PRINT_DEBUG("(%ld, %d)",
                 _lf_sched_instance->reactor_self_instances[i]->tag.time,
                 _lf_sched_instance->reactor_self_instances[i]->tag.microstep);
         }
@@ -508,7 +504,7 @@ void lf_sched_init(
     _lf_sched_instance->counters = counters;
 
     // FIXME: Why does this show a negative value?
-    LF_PRINT_DEBUG("start_time = %lld", start_time);
+    LF_PRINT_DEBUG("start_time = %ld", start_time);
 }
 
 /**
@@ -545,7 +541,7 @@ reaction_t* lf_sched_get_ready_reaction(int worker_number) {
     opcode_t        op;
     long long int   rs1;
     long long int   rs2;
-    int*            iteration           = &hyperperiod_iterations[worker_number];
+    volatile int*   iteration           = &hyperperiod_iterations[worker_number];
 
     while (!exit_loop) {
         op  = current_schedule[*pc].op;
