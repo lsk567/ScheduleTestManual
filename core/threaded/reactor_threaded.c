@@ -1130,9 +1130,6 @@ int lf_reactor_c_main(int argc, const char* argv[]) {
 
         lf_print("---- Using %d workers.", _lf_number_of_workers);
 
-        // FIXME: A potential duplicate?
-        // lf_sched_init() is already called within initialize()
-        // -> _lf_initialize_trigger_objects() -> lf_sched_init().
         // Initialize the scheduler
         lf_sched_init(
             (size_t)_lf_number_of_workers,

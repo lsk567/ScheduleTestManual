@@ -247,7 +247,7 @@ void execute_inst_WU(size_t worker_number, long long int rs1, long long int rs2,
 void execute_inst_ADV(size_t worker_number, long long int rs1, long long int rs2, size_t* pc,
     reaction_t** returned_reaction, bool* exit_loop, int* iteration) {
     
-    // FIXME: This mutex might be very expensive.
+    // This mutex is quite expensive.
     lf_mutex_lock(&mutex);
 
     self_base_t* reactor =
@@ -475,6 +475,26 @@ void lf_sched_init(
 ) {
     LF_PRINT_DEBUG("Scheduler: Initializing with %zu workers", number_of_workers);
     if(!init_sched_instance(&_lf_sched_instance, number_of_workers, params)) {
+        // FIXME: This is not the best practice and seems to take advantage of a
+        //        bug in the runtime.
+        //        lf_sched_init() is for some reason called twice.
+        //        Once in lf_reactor_c_main() in reactor_threaded.c.
+        //        Another in initialize() -> _lf_initialize_trigger_objects()
+        //        -> lf_sched_init(), also in reactor_threaded.c.
+        //        This implementation takes advantage of the fact that when
+        //        lf_sched_init() is called the second time, start_time is set
+        //        to a meaningful value. When the first time lf_sched_init() is
+        //        called, start_time has not been set.
+
+        // Initialize the local tags for the FS scheduler.
+        for (int i = 0; i < _lf_sched_instance->num_reactor_self_instances; i++) {
+            _lf_sched_instance->reactor_self_instances[i]->tag.time = start_time;
+            _lf_sched_instance->reactor_self_instances[i]->tag.microstep = 0;
+            LF_PRINT_DEBUG("(%lld, %d)",
+                _lf_sched_instance->reactor_self_instances[i]->tag.time,
+                _lf_sched_instance->reactor_self_instances[i]->tag.microstep);
+        }
+
         // Already initialized
         return;
     }
@@ -489,15 +509,6 @@ void lf_sched_init(
 
     // FIXME: Why does this show a negative value?
     LF_PRINT_DEBUG("start_time = %lld", start_time);
-
-    // Initialize the local tags for the FS scheduler.
-    for (int i = 0; i < _lf_sched_instance->num_reactor_self_instances; i++) {
-        _lf_sched_instance->reactor_self_instances[i]->tag.time = start_time;
-        _lf_sched_instance->reactor_self_instances[i]->tag.microstep = 0;
-        LF_PRINT_DEBUG("(%lld, %d)",
-            _lf_sched_instance->reactor_self_instances[i]->tag.time,
-            _lf_sched_instance->reactor_self_instances[i]->tag.microstep);
-    }
 }
 
 /**

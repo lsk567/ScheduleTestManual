@@ -1696,7 +1696,10 @@ void initialize(void) {
     next_q = pqueue_init(INITIAL_EVENT_QUEUE_SIZE, in_no_particular_order, get_event_time,
             get_event_position, set_event_position, event_matches, print_event);
 
-    // Shaokai: Start time should be set after all the prep work is done.
+    // Initialize the trigger table.
+    _lf_initialize_trigger_objects();
+
+    // Start time should be set after all the prep work is done.
     physical_start_time = lf_time_physical();
     current_tag.time = physical_start_time;
     start_time = current_tag.time;
@@ -1712,14 +1715,6 @@ void initialize(void) {
         // A duration has been specified. Calculate the stop time.
         _lf_set_stop_tag((tag_t) {.time = current_tag.time + duration, .microstep = 0});
     }
-
-    // FIXME: Initialize each reactor's tag to NEVER. Then upon access in ADV,
-    // check if the tag is NEVER. If so, set to it start_time.
-
-    // FIXME: Move this back.
-    // Initialize the trigger table.
-    _lf_initialize_trigger_objects();
-
 }
 
 /**

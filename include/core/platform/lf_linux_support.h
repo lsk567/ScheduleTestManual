@@ -48,12 +48,6 @@ THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "lf_tag_64_32.h"
 
 // The underlying physical clock for Linux
-// FIXME: This is a problem. When the program first starts,
-// the value reported by CLOCK_MONOTONIC (and lf_clock_gettime()) is ~24034861235297147.
-// Then _lf_time_epoch_offset is updated to 1660079548929325548,
-// which brings the next lf_clock_gettime() value up to 1660079548929325548.
-// This huge gap basically makes `physical_start_time` useless!
-// #define _LF_CLOCK CLOCK_MONOTONIC
-#define _LF_CLOCK CLOCK_REALTIME
+#define _LF_CLOCK CLOCK_MONOTONIC
 
 #endif // LF_LINUX_SUPPORT_H

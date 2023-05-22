@@ -14,7 +14,7 @@
 // #include "core/threaded/scheduler_instructions.h"
 
 const inst_t schedule_0[] = {
-    {.op=BIT,   .rs1=5,             .rs2=-1},           // BIT if timeout, jump to line 5.
+    {.op=BIT,   .rs1=6,             .rs2=-1},           // BIT if timeout, jump to line 6.
     
     {.op=EXE,   .rs1=1,             .rs2=-1},           // EXE source2.0
     {.op=INC2,  .rs1=0,             .rs2=1},            // INC2 counter 0 => 1
@@ -26,7 +26,7 @@ const inst_t schedule_0[] = {
 };
 
 const inst_t schedule_1[] = {
-    {.op=BIT,   .rs1=12,            .rs2=-1},           // BIT if timeout, jump to line 12.
+    {.op=BIT,   .rs1=13,            .rs2=-1},           // BIT if timeout, jump to line 13.
     
     // Iteration 1
     {.op=EXE,   .rs1=0,             .rs2=-1},           // EXE source.0
@@ -36,6 +36,7 @@ const inst_t schedule_1[] = {
     {.op=WU,    .rs1=0,             .rs2=1},            // WU counter 0 reaches 1
     {.op=EIT,   .rs1=4,             .rs2=-1},           // EIT sink.2
     {.op=ADV2,  .rs1=2,             .rs2=5000000LL},    // ADV2 sink, 5000000
+    {.op=DU,    .rs1=5000000LL,     .rs2=-1},           // DU until 5 ms
     {.op=EXE,   .rs1=2,             .rs2=-1},           // EXE sink.0
     {.op=ADV2,  .rs1=2,             .rs2=5000000LL},    // ADV2 sink, 5000000
 
