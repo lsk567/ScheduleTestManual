@@ -651,11 +651,14 @@ void _lf_initialize_trigger_objects() {
         }
     }
 
-    struct self_base_t** _lf_reactor_self_instances = (struct self_base_t**) calloc(3, sizeof(reaction_t*));
-    _lf_reactor_self_instances[0] = &(scheduletest_source_self[0]->base);
-    _lf_reactor_self_instances[1] = &(scheduletest_source2_self[0]->base);
-    _lf_reactor_self_instances[2] = &(scheduletest_sink_self[0]->base);
+    struct self_base_t** _lf_reactor_self_instances = (struct self_base_t**) calloc(4, sizeof(reaction_t*));
+    _lf_reactor_self_instances[0] = &(scheduletest_main_self[0]->base);
+    _lf_reactor_self_instances[1] = &(scheduletest_source_self[0]->base);
+    _lf_reactor_self_instances[2] = &(scheduletest_source2_self[0]->base);
+    _lf_reactor_self_instances[3] = &(scheduletest_sink_self[0]->base);
     // FIXME: Why can't we put the pointer array on the stack?
+    // Because the function _lf_initialize_trigger_objects() will terminate
+    // and the pointer _lf_reactor_self_instances becomes garbage.
     /*
     struct self_base_t* _lf_reactor_self_instances[3] = {
         &(scheduletest_source_self[0]->base),
